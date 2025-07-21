@@ -2,7 +2,7 @@ name: Run PnL Daily
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # 12:00 AM PH time (UTC+8)
+    - cron: '0 16 * * *'  # 12:00 AM PH time
   workflow_dispatch:
 
 jobs:
@@ -22,14 +22,15 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: 🔐 Create service_account.json
-        run: echo "${{ secrets.GOOGLE_CREDS_JSON }}" > service_account.json
+        env:
+          GOOGLE_CREDS_JSON: ${{ secrets.GOOGLE_CREDS_JSON }}
+        run: echo "$GOOGLE_CREDS_JSON" > service_account.json
 
-      - name: ⚙️ Create .env file with merchant sheet URL
+      - name: ⚙️ Create .env file
         run: echo "MERCHANT_CONFIG_SHEET_URL=${{ secrets.MERCHANT_CONFIG_SHEET_URL }}" > .env
 
       - name: 🚀 Run PnL script
         run: python3 main.py
-
 
         run: echo "MERCHANT_CONFIG_SHEET_URL=${{ secrets.MERCHANT_CONFIG_SHEET_URL }}" > .env
 
