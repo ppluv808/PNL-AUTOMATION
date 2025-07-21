@@ -31,5 +31,7 @@ jobs:
           echo "MERCHANT_CONFIG_SHEET_URL=${{ secrets.MERCHANT_CONFIG_SHEET_URL }}" > .env
 
       - name: Run PnL script
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service_account.json
         run: |
           python3 main.py
