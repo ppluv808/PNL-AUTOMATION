@@ -22,9 +22,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Create service_account.json
+      - name: Decode GOOGLE_CREDS_JSON and write to service_account.json
         run: |
-          echo "${{ secrets.GOOGLE_CREDS_JSON }}" > service_account.json
+          echo "${{ secrets.GOOGLE_CREDS_JSON }}" | base64 --decode > service_account.json
 
       - name: Create .env file
         run: |
