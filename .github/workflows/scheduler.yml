@@ -2,7 +2,7 @@ name: Run PnL Daily
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # 12:00 AM PH time
+    - cron: '0 16 * * *'  # 12:00 AM PH time (UTC+8)
   workflow_dispatch:      # Manual trigger
 
 jobs:
@@ -29,6 +29,11 @@ jobs:
       - name: Create .env file
         run: |
           echo "MERCHANT_CONFIG_SHEET_URL=${{ secrets.MERCHANT_CONFIG_SHEET_URL }}" > .env
+
+      - name: Export Digicash credentials
+        run: |
+          echo "DIGICASH_API_USER=${{ secrets.DIGICASH_API_USER }}" >> $GITHUB_ENV
+          echo "DIGICASH_API_PASS=${{ secrets.DIGICASH_API_PASS }}" >> $GITHUB_ENV
 
       - name: Run PnL script
         env:
