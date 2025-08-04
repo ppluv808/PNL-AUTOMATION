@@ -36,7 +36,6 @@ def main():
     ensure_headers(config_sheet)
     merchants = config_sheet.get_all_records()
 
-    # 🧪 Optional: Test access to first sheet
     if merchants:
         try:
             debug_url = merchants[0]["sheet_url"]
@@ -60,7 +59,6 @@ def main():
             print(f"⚠️ Skipping {m.get('name','UNKNOWN')} (missing merchant_id or sheet_url)")
             continue
 
-        print(f"🔄 Scanning for first transaction of {m['name']}...")
         start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
         end_date = today
         first_date_found = False
@@ -95,7 +93,7 @@ def main():
             print(f"🧪 Sample transaction: {transactions[0] if transactions else 'No data'}")
 
             data = calc_fees(transactions, m)
-            data["raw_transactions"] = transactions  # ✅ Required for filtering 'paid' only
+            data["raw_transactions"] = transactions
 
             try:
                 target_sheet = client.open_by_url(m["sheet_url"]).sheet1
@@ -114,3 +112,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
