@@ -6,6 +6,14 @@ REQUIRED_COLUMNS = [
     "Date", "Payins", "Payouts", "GCash Payin Txn", "QRPH Payin Txn", "Payout Txn",
     "GCash Fees", "QRPH Fees", "Payout Fees", "Total Fees", "Buy Rate", "Settlement", "Ending Balance"
 ]
+import gspread
+import json
+from oauth2client.service_account import ServiceAccountCredentials
+
+REQUIRED_COLUMNS = [
+    "Date", "Payins", "Payouts", "GCash Payin Txn", "QRPH Payin Txn", "Payout Txn",
+    "GCash Fees", "QRPH Fees", "Payout Fees", "Total Fees", "Buy Rate", "Settlement", "Ending Balance"
+]
 
 def authorize_google_sheets():
     with open("service_account.json", "r") as f:
@@ -13,7 +21,7 @@ def authorize_google_sheets():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
     client = gspread.authorize(credentials)
-    client.service_account_email = creds_json.get("client_email")  # 👈 For debugging
+    client.service_account_email = creds_json.get("client_email")
     return client
 
 def ensure_columns(sheet):
@@ -26,7 +34,6 @@ def ensure_columns(sheet):
         print("✅ Merchant sheet headers already correct.")
 
 def append_or_update_summary(sheet, today, data):
-    # Filter transactions by status = "paid"
     paid_txns = [t for t in data["raw_transactions"] if t.get("status") == "paid"]
 
     payins = [t for t in paid_txns if t.get("type") == "payin"]
