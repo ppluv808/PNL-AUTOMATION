@@ -1,11 +1,14 @@
 import requests
-import time
-import os
-import json
 from datetime import datetime
 from pytz import timezone
+import base64
+import os
 
 PH_TZ = timezone("Asia/Manila")
+
+USERNAME = os.getenv("DIGICASH_API_USER")
+PASSWORD = os.getenv("DIGICASH_API_PASS")
+MERCHANT_ID = os.getenv("FASTPAY_MERCHANT_ID", "ventaja")  # Optional fallback
 
 def classify_transaction(t):
     method = t.get("method", "").lower()
@@ -41,52 +44,53 @@ def filter_by_date(transactions, start_dt, end_dt):
             print("❌ Error parsing timestamp:", timestamp_str, e)
     return filtered
 
-def fetch_transactions(token, merchant_id, start_date, end_date):
+def fetch_transactions(start_date, end_date, type_):
+    assert type_ in {"pay", "payout"}, "type_ must be either 'pay' or 'payout'"
+
+    url = f"https://api.fastpayph.com/reports/{type_}"
+    start_dt = datetime.fromisoformat(start_date).astimezone(PH_TZ)
+    end_dt = datetime.fromisoformat(end_date).astimezone(PH_TZ)
+
+    if not USERNAME or not PASSWORD:
+        raise EnvironmentError("Missing DIGICASH_API_USER or DIGICASH_API_PASS in environment variables.")
+
     headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "User-Agent": "PnL-AutomationBot/1.0"
+        "Authorization": "Basic " + base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode(),
+        "Accept": "application/json"
     }
-
-    base_url = os.getenv("DIGICASH_API_BASE", "https://uat-api.fastpayph.com")
-    url = f"{base_url}/reports/pay"
-    payload = {
+    params = {
         "startDate": start_date,
-        "endDate": end_date
+        "endDate": end_date,
+        "merchantId": MERCHANT_ID
     }
 
-    print("📦 Requesting FastPay:", url)
-    print("📅 Payload:", payload)
+    print(f"📦 Fetching {type_} transactions from FastPay API")
+    print("🔗 URL:", url)
+    print("📅 Date Range:", params["startDate"], "to", params["endDate"])
 
     for attempt in range(3):
         try:
-            resp = requests.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            response_json = resp.json()
-            data = response_json.get("data", {})
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            data = response.json()
 
             if isinstance(data, dict) and "result" in data and "items" in data["result"]:
-                data = data["result"]["items"]
+                items = data["result"]["items"]
+            else:
+                items = data.get("data", data)
 
-            if isinstance(data, str):
-                data = json.loads(data)
+            if not isinstance(items, list):
+                raise ValueError("Expected list of transactions.")
 
-            if not isinstance(data, list):
-                raise ValueError("Expected list of transactions, got something else.")
+            classified = [classify_transaction(t) for t in items]
+            filtered = filter_by_date(classified, start_dt, end_dt)
 
-            transactions = [classify_transaction(t) for t in data]
-
-            # Manual filter by datetime
-            start_dt = datetime.fromisoformat(start_date).astimezone(PH_TZ)
-            end_dt = datetime.fromisoformat(end_date).astimezone(PH_TZ)
-            filtered = filter_by_date(transactions, start_dt, end_dt)
-
-            print(f"✅ {len(filtered)} filtered transactions returned for range.")
+            print(f"✅ Retrieved {len(filtered)} {type_} transactions")
             return filtered
 
         except Exception as e:
-            print(f"⚠️ Attempt {attempt + 1} failed: {e}")
+            print(f"⚠️ Attempt {attempt + 1} failed:", e)
             if attempt == 2:
                 raise
+            import time
             time.sleep(2 ** attempt)
-
