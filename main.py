@@ -63,45 +63,39 @@ def main():
             print(f"⚠️ Skipping {m.get('name','UNKNOWN')} (missing merchant_id or sheet_url)")
             continue
 
-        # Start from an early default date
-        start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
-        end_date = today
-        first_date_found = False
-
-        # Find first actual transaction date
-        while start_date <= end_date:
-            start_dt = ph_time.localize(datetime.combine(start_date, datetime.min.time()))
-            end_dt = ph_time.localize(datetime.combine(start_date, datetime.max.time()))
-
-            transactions = fetch_transactions(token, merchant_id, start_dt.isoformat(), end_dt.isoformat())
-            if transactions:
-                print(f"📆 First transaction found: {start_date.strftime('%Y-%m-%d')}")
-                first_date_found = True
-                break
-            start_date += timedelta(days=1)
-
-        if not first_date_found:
-            print(f"⚠️ No transactions found for {m['name']}")
-            continue
+        # Start from earliest known date for historical completeness
+        start_date = datetime.strptime("2024-01-01", "%Y-%m-%d").date()
+        end_date = today.date()
 
         current_date = start_date
         while current_date <= end_date:
-            print(f"📊 Processing {m['name']} for {current_date.strftime('%Y-%m-%d')}")
+            print(f"\n📊 Processing {m['name']} for {current_date.strftime('%Y-%m-%d')}")
 
+            # Define full-day window in PH time
             start_dt = ph_time.localize(datetime.combine(current_date, datetime.min.time()))
             end_dt = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
 
+            # Fetch and debug print transactions
             transactions = fetch_transactions(token, merchant_id, start_dt.isoformat(), end_dt.isoformat())
-            print(f"🔢 {len(transactions)} transactions fetched.")
+            print(f"🔢 Transactions fetched: {len(transactions)}")
+
+            if current_date.strftime("%Y-%m-%d") == "2025-07-24":
+                print(f"🧾 TRANSACTION DUMP for {current_date}:")
+                for t in transactions:
+                    print(t)
 
             if not isinstance(transactions, list) or not all(isinstance(t, dict) for t in transactions):
-                print(f"❌ Invalid transaction format on {current_date.strftime('%Y-%m-%d')}, skipping.")
+                print(f"❌ Invalid transaction format on {current_date}, skipping.")
                 current_date += timedelta(days=1)
                 continue
 
-            print(f"🧪 Sample transaction: {transactions[0] if transactions else 'No data'}")
-
+            # Calculate payin/payout from fee logic
             data = calc_fees(transactions, m)
+
+            print(f"💰 Payin: {data.get('total_payin', 0)}")
+            print(f"💸 Payout: {data.get('total_payout', 0)}")
+            print(f"#️⃣ Payout Count: {data.get('payout_tx_count', 0)}")
+
             data["raw_transactions"] = transactions
 
             try:
@@ -111,6 +105,7 @@ def main():
                 print(f"❌ Cannot access {m['sheet_url']}. Make sure it's shared to your service account.")
                 break
 
+            # Write to Google Sheet
             append_or_update_summary(target_sheet, current_date, data)
             current_date += timedelta(days=1)
 
