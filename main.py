@@ -9,6 +9,9 @@ from fees import calc_fees
 from sheet_manager import authorize_google_sheets, append_or_update_summary, ensure_columns
 import gspread
 
+from dateutil import parser
+from pytz import timezone
+
 REQUIRED_HEADERS = [
     "name", "merchant_id", "sheet_url",
     "payin_rate", "qrph_fee", "gcash_fee", "payout_fee",
@@ -48,6 +51,7 @@ def main():
             print("🔍 Error details:", e)
 
     token = get_digicash_token()
+    ph_time = timezone("Asia/Manila")
 
     for m in merchants:
         print("🔍 Merchant:", m.get("name"))
@@ -69,11 +73,16 @@ def main():
         while start_date <= end_date:
             date_str = start_date.strftime("%Y-%m-%d")
             transactions = fetch_transactions(token, merchant_id, date_str, date_str)
-            transactions = [t for t in transactions if t.get("transaction_date", "").startswith(date_str)]
-            if transactions:
-                tx_date_str = transactions[0].get("transaction_date")
-                if tx_date_str:
-                    start_date = datetime.strptime(tx_date_str[:10], "%Y-%m-%d")
+            filtered = []
+            for t in transactions:
+                try:
+                    tx_time = parser.parse(t.get("transaction_date", "")).astimezone(ph_time)
+                    if tx_time.date() == start_date.date():
+                        filtered.append(t)
+                except:
+                    continue
+            if filtered:
+                start_date = start_date
                 print(f"📆 First transaction found: {start_date.strftime('%Y-%m-%d')}")
                 first_date_found = True
                 break
@@ -88,7 +97,19 @@ def main():
             date_str = current_date.strftime("%Y-%m-%d")
             print(f"📊 Processing {m['name']} for {date_str}")
             transactions = fetch_transactions(token, merchant_id, date_str, date_str)
-            transactions = [t for t in transactions if t.get("transaction_date", "").startswith(date_str)]
+
+            start_of_day = ph_time.localize(datetime.combine(current_date, datetime.min.time()))
+            end_of_day = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
+
+            filtered = []
+            for t in transactions:
+                try:
+                    tx_time = parser.parse(t.get("transaction_date", "")).astimezone(ph_time)
+                    if start_of_day <= tx_time <= end_of_day:
+                        filtered.append(t)
+                except:
+                    continue
+            transactions = filtered
 
             if not isinstance(transactions, list) or not all(isinstance(t, dict) for t in transactions):
                 print(f"❌ Invalid transaction format on {date_str}, skipping.")
@@ -117,3 +138,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
