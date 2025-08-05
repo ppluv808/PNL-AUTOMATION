@@ -9,7 +9,6 @@ from fees import calc_fees
 from sheet_manager import authorize_google_sheets, append_or_update_summary, ensure_columns
 import gspread
 
-from dateutil import parser
 from pytz import timezone
 
 REQUIRED_HEADERS = [
@@ -71,18 +70,11 @@ def main():
 
         # Find first actual transaction date
         while start_date <= end_date:
-            date_str = start_date.strftime("%Y-%m-%d")
-            transactions = fetch_transactions(token, merchant_id, date_str, date_str)
-            filtered = []
-            for t in transactions:
-                try:
-                    tx_time = parser.parse(t.get("transaction_date", "")).astimezone(ph_time)
-                    if tx_time.date() == start_date.date():
-                        filtered.append(t)
-                except:
-                    continue
-            if filtered:
-                start_date = start_date
+            start_dt = ph_time.localize(datetime.combine(start_date, datetime.min.time()))
+            end_dt = ph_time.localize(datetime.combine(start_date, datetime.max.time()))
+
+            transactions = fetch_transactions(token, merchant_id, start_dt.isoformat(), end_dt.isoformat())
+            if transactions:
                 print(f"📆 First transaction found: {start_date.strftime('%Y-%m-%d')}")
                 first_date_found = True
                 break
@@ -94,25 +86,16 @@ def main():
 
         current_date = start_date
         while current_date <= end_date:
-            date_str = current_date.strftime("%Y-%m-%d")
-            print(f"📊 Processing {m['name']} for {date_str}")
-            transactions = fetch_transactions(token, merchant_id, date_str, date_str)
+            print(f"📊 Processing {m['name']} for {current_date.strftime('%Y-%m-%d')}")
 
-            start_of_day = ph_time.localize(datetime.combine(current_date, datetime.min.time()))
-            end_of_day = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
+            start_dt = ph_time.localize(datetime.combine(current_date, datetime.min.time()))
+            end_dt = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
 
-            filtered = []
-            for t in transactions:
-                try:
-                    tx_time = parser.parse(t.get("transaction_date", "")).astimezone(ph_time)
-                    if start_of_day <= tx_time <= end_of_day:
-                        filtered.append(t)
-                except:
-                    continue
-            transactions = filtered
+            transactions = fetch_transactions(token, merchant_id, start_dt.isoformat(), end_dt.isoformat())
+            print(f"🔢 {len(transactions)} transactions fetched.")
 
             if not isinstance(transactions, list) or not all(isinstance(t, dict) for t in transactions):
-                print(f"❌ Invalid transaction format on {date_str}, skipping.")
+                print(f"❌ Invalid transaction format on {current_date.strftime('%Y-%m-%d')}, skipping.")
                 current_date += timedelta(days=1)
                 continue
 
@@ -128,7 +111,6 @@ def main():
                 print(f"❌ Cannot access {m['sheet_url']}. Make sure it's shared to your service account.")
                 break
 
-            print(f"📥 Writing to sheet on {date_str}: {data}")
             append_or_update_summary(target_sheet, current_date, data)
             current_date += timedelta(days=1)
 
@@ -138,4 +120,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
