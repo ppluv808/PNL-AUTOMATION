@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
+
 import os
 from datetime import datetime, timedelta
 from auth import get_digicash_token
@@ -59,13 +60,16 @@ def main():
             print(f"⚠️ Skipping {m.get('name','UNKNOWN')} (missing merchant_id or sheet_url)")
             continue
 
+        # Start from an early default date
         start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
         end_date = today
         first_date_found = False
 
+        # Find first actual transaction date
         while start_date <= end_date:
             date_str = start_date.strftime("%Y-%m-%d")
             transactions = fetch_transactions(token, merchant_id, date_str, date_str)
+            transactions = [t for t in transactions if t.get("transaction_date", "").startswith(date_str)]
             if transactions:
                 tx_date_str = transactions[0].get("transaction_date")
                 if tx_date_str:
@@ -84,6 +88,7 @@ def main():
             date_str = current_date.strftime("%Y-%m-%d")
             print(f"📊 Processing {m['name']} for {date_str}")
             transactions = fetch_transactions(token, merchant_id, date_str, date_str)
+            transactions = [t for t in transactions if t.get("transaction_date", "").startswith(date_str)]
 
             if not isinstance(transactions, list) or not all(isinstance(t, dict) for t in transactions):
                 print(f"❌ Invalid transaction format on {date_str}, skipping.")
@@ -112,4 +117,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
