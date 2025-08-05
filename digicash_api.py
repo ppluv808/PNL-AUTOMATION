@@ -8,7 +8,7 @@ PH_TZ = timezone("Asia/Manila")
 
 USERNAME = os.getenv("DIGICASH_API_USER")
 PASSWORD = os.getenv("DIGICASH_API_PASS")
-MERCHANT_ID = os.getenv("FASTPAY_MERCHANT_ID", "ventaja")  # Optional fallback
+MERCHANT_SERVICE_ID = os.getenv("Ventaja")  # Required
 
 def classify_transaction(t):
     method = t.get("method", "").lower()
@@ -47,12 +47,12 @@ def filter_by_date(transactions, start_dt, end_dt):
 def fetch_transactions(start_date, end_date, type_):
     assert type_ in {"pay", "payout"}, "type_ must be either 'pay' or 'payout'"
 
+    if not USERNAME or not PASSWORD or not MERCHANT_SERVICE_ID:
+        raise EnvironmentError("Missing DIGICASH_API_USER, DIGICASH_API_PASS, or FASTPAY_MERCHANT_SERVICE_ID in environment variables.")
+
     url = f"https://api.fastpayph.com/reports/{type_}"
     start_dt = datetime.fromisoformat(start_date).astimezone(PH_TZ)
     end_dt = datetime.fromisoformat(end_date).astimezone(PH_TZ)
-
-    if not USERNAME or not PASSWORD:
-        raise EnvironmentError("Missing DIGICASH_API_USER or DIGICASH_API_PASS in environment variables.")
 
     headers = {
         "Authorization": "Basic " + base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode(),
@@ -61,7 +61,7 @@ def fetch_transactions(start_date, end_date, type_):
     params = {
         "startDate": start_date,
         "endDate": end_date,
-        "merchantId": MERCHANT_ID
+        "merchantServiceId": MERCHANT_SERVICE_ID
     }
 
     print(f"📦 Fetching {type_} transactions from FastPay API")
