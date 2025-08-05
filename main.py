@@ -3,7 +3,6 @@ load_dotenv()
 
 import os
 from datetime import datetime, timedelta
-from auth import get_digicash_token
 from digicash_api import fetch_transactions
 from fees import calc_fees
 from sheet_manager import authorize_google_sheets, append_or_update_summary, ensure_columns
@@ -49,21 +48,23 @@ def main():
             print("❌ TEST ACCESS FAILED:")
             print("🔍 Error details:", e)
 
-    token = get_digicash_token()
     ph_time = timezone("Asia/Manila")
 
     for m in merchants:
         print("🔍 Merchant:", m.get("name"))
         print("🔗 Sheet URL:", m.get("sheet_url"))
 
-        if not m.get("Active", True):
+        # Normalize "Active" column (can be TRUE, "TRUE", 1, etc.)
+        is_active = str(m.get("Active", "TRUE")).strip().lower() in {"true", "1", "yes"}
+
+        if not is_active:
             continue
+
         merchant_id = m.get("merchant_id")
         if not merchant_id or not m.get("sheet_url"):
             print(f"⚠️ Skipping {m.get('name','UNKNOWN')} (missing merchant_id or sheet_url)")
             continue
 
-        # Start from earliest known date for historical completeness
         start_date = datetime.strptime("2024-01-01", "%Y-%m-%d").date()
         end_date = today.date()
 
@@ -71,25 +72,27 @@ def main():
         while current_date <= end_date:
             print(f"\n📊 Processing {m['name']} for {current_date.strftime('%Y-%m-%d')}")
 
-            # Define full-day window in PH time
+            # PH timezone window: 00:00:00 to 23:59:59
             start_dt = ph_time.localize(datetime.combine(current_date, datetime.min.time()))
             end_dt = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
 
-            # Fetch and debug print transactions
-            transactions = fetch_transactions(token, merchant_id, start_dt.isoformat(), end_dt.isoformat())
-            print(f"🔢 Transactions fetched: {len(transactions)}")
+            # Fetch FastPay transactions for the day
+            try:
+                payin_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), type_="pay")
+                payout_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), type_="payout")
+                transactions = payin_txns + payout_txns
+            except Exception as e:
+                print("❌ Fetch failed:", e)
+                current_date += timedelta(days=1)
+                continue
 
-            if current_date.strftime("%Y-%m-%d") == "2025-07-24":
-                print(f"🧾 TRANSACTION DUMP for {current_date}:")
-                for t in transactions:
-                    print(t)
+            print(f"🔢 Transactions fetched: {len(transactions)}")
 
             if not isinstance(transactions, list) or not all(isinstance(t, dict) for t in transactions):
                 print(f"❌ Invalid transaction format on {current_date}, skipping.")
                 current_date += timedelta(days=1)
                 continue
 
-            # Calculate payin/payout from fee logic
             data = calc_fees(transactions, m)
 
             print(f"💰 Payin: {data.get('total_payin', 0)}")
@@ -105,7 +108,6 @@ def main():
                 print(f"❌ Cannot access {m['sheet_url']}. Make sure it's shared to your service account.")
                 break
 
-            # Write to Google Sheet
             append_or_update_summary(target_sheet, current_date, data)
             current_date += timedelta(days=1)
 
