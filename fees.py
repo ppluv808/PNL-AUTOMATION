@@ -1,21 +1,36 @@
 def calc_fees(transactions, merchant):
-    gcash_payins = [t for t in transactions if t['type'] == 'payin' and t.get('method', '').lower() == 'gcash']
-    qrph_payins = [t for t in transactions if t['type'] == 'payin' and t.get('method', '').lower() == 'qrph']
-    payouts = [t for t in transactions if t['type'] == 'payout']
-    
+    gcash_payins = []
+    qrph_payins = []
+    payouts = []
+
+    for t in transactions:
+        t['fee'] = 0  # Default
+
+        if t['type'] == 'payin':
+            method = t.get('method', '').lower()
+            if method == 'gcash':
+                t['fee'] = t['amount'] * 0.025
+                gcash_payins.append(t)
+            elif method == 'qrph':
+                t['fee'] = 7
+                qrph_payins.append(t)
+        elif t['type'] == 'payout':
+            t['fee'] = float(merchant.get('payout_fee', 15))
+            payouts.append(t)
+
     gcash_sum = sum(t['amount'] for t in gcash_payins)
     qrph_sum = sum(t['amount'] for t in qrph_payins)
     payin_sum = gcash_sum + qrph_sum
     payout_sum = sum(t['amount'] for t in payouts)
-    
+
     gcash_count = len(gcash_payins)
     qrph_count = len(qrph_payins)
     payout_count = len(payouts)
-    
-    gcash_fee = gcash_sum * 0.025
-    qrph_fee = qrph_count * 7
-    payout_fee = payout_count * float(merchant.get('payout_fee', 15))
-    
+
+    gcash_fee = sum(t['fee'] for t in gcash_payins)
+    qrph_fee = sum(t['fee'] for t in qrph_payins)
+    payout_fee = sum(t['fee'] for t in payouts)
+
     total_fees = gcash_fee + qrph_fee + payout_fee
     buy_rate = total_fees / payin_sum if payin_sum else 0
 
