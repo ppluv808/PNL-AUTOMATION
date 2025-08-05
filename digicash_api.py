@@ -10,7 +10,7 @@ def classify_transaction(t):
     operation_id = t.get("operation_id", "")
 
     # Heuristics to determine type
-    if method in {"gcash", "grabpay", "palawanpay", "maya"}:
+    if method in {"gcash", "grabpay", "palawanpay", "maya", "qrph"}:
         t["type"] = "payin"
     elif bank_name or account_number:
         t["type"] = "payout"
