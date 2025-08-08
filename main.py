@@ -50,15 +50,15 @@ def main():
     for m in merchants:
         name = m.get("name", "UNKNOWN")
         sheet_url = m.get("sheet_url")
-        merchant_id = m.get("merchant_id", "").strip()
+        service_id = m.get("merchant_id", "").strip()  # 🆕 This is the serviceId now
 
         is_active = str(m.get("Active", "TRUE")).strip().lower() in {"true", "1", "yes"}
 
         if not is_active:
             print(f"⏭️ Skipping {name} (inactive)")
             continue
-        if not merchant_id or not sheet_url:
-            print(f"⚠️ Skipping {name} (missing merchant_id or sheet_url)")
+        if not service_id or not sheet_url:
+            print(f"⚠️ Skipping {name} (missing service_id or sheet_url)")
             continue
 
         start_date = datetime.strptime("2024-01-01", "%Y-%m-%d").date()
@@ -73,8 +73,8 @@ def main():
             end_dt = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
 
             try:
-                payin_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), txn_type="pay", merchant_id=merchant_id)
-                payout_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), txn_type="payout", merchant_id=merchant_id)
+                payin_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), txn_type="pay", service_id=service_id)
+                payout_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), txn_type="payout", service_id=service_id)
                 transactions = payin_txns + payout_txns
             except Exception as e:
                 print(f"❌ Fetch failed for {name} on {current_date}: {e}")
