@@ -19,8 +19,10 @@ def get_digicash_token():
         "User-Agent": "PnL-AutomationBot/1.0"
     }
 
-    url = "https://uat-api.fastpayph.com/auth"  # <-- Updated URL
-    payload = {}  # <-- Important: required payload even if empty
+    # You can switch between UAT and production by changing this line
+    url = "https://api.fastpayph.com/auth"  # <- production endpoint
+
+    payload = {}
 
     resp = requests.post(url, headers=headers, json=payload)
     if resp.status_code != 200:
@@ -28,6 +30,6 @@ def get_digicash_token():
 
     data = resp.json()
     if "data" not in data or "token" not in data["data"]:
-        raise Exception("No access_token in Digicash response.")
+        raise Exception("No token in Digicash response.")
 
     return data["data"]["token"]
