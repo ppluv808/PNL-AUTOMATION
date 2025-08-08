@@ -73,8 +73,8 @@ def main():
             end_dt = ph_time.localize(datetime.combine(current_date, datetime.max.time()))
 
             try:
-                payin_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), type_="pay", merchant_id=merchant_id)
-                payout_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), type_="payout", merchant_id=merchant_id)
+                payin_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), txn_type="pay", merchant_id=merchant_id)
+                payout_txns = fetch_transactions(start_dt.isoformat(), end_dt.isoformat(), txn_type="payout", merchant_id=merchant_id)
                 transactions = payin_txns + payout_txns
             except Exception as e:
                 print(f"❌ Fetch failed for {name} on {current_date}: {e}")
