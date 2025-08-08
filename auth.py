@@ -1,17 +1,15 @@
-import os
 import base64
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
+# 🔐 Replace with your actual production credentials
+DIGICASH_API_USER = "your_username_here"
+DIGICASH_API_PASS = "your_password_here"
 
 def get_digicash_token():
-    username = os.getenv("DIGICASH_API_USER")
-    password = os.getenv("DIGICASH_API_PASS")
-    if not username or not password:
-        raise Exception("DIGICASH_API_USER or DIGICASH_API_PASS not set in the environment.")
+    if not DIGICASH_API_USER or not DIGICASH_API_PASS:
+        raise Exception("DIGICASH_API_USER or DIGICASH_API_PASS not set.")
 
-    auth_str = f"{username}:{password}"
+    auth_str = f"{DIGICASH_API_USER}:{DIGICASH_API_PASS}"
     b64_auth = base64.b64encode(auth_str.encode()).decode()
     headers = {
         "Authorization": f"Basic {b64_auth}",
@@ -19,17 +17,14 @@ def get_digicash_token():
         "User-Agent": "PnL-AutomationBot/1.0"
     }
 
-    # You can switch between UAT and production by changing this line
-    url = "https://api.fastpayph.com/auth"  # <- production endpoint
+    url = "https://api.fastpayph.com/auth"  # Production endpoint
 
-    payload = {}
-
-    resp = requests.post(url, headers=headers, json=payload)
+    resp = requests.post(url, headers=headers, json={})
     if resp.status_code != 200:
         raise Exception(f"Digicash Auth failed: {resp.status_code} {resp.text}")
 
     data = resp.json()
     if "data" not in data or "token" not in data["data"]:
-        raise Exception("No token in Digicash response.")
+        raise Exception("No token found in Digicash response.")
 
     return data["data"]["token"]
