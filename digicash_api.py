@@ -1,7 +1,7 @@
 import requests
 import os
 from datetime import datetime, timedelta
-from auth import get_auth_token
+
 
 DIGICASH_BASE_URL = "https://api.fastpayph.com"
 
